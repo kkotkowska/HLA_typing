@@ -2,3 +2,6 @@ results/*
 .nextflow.log*
 .nextflow
 work/*
+data/imgt-hla
+data/test_data/data39
+*/.DS_Store

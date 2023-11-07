@@ -68,7 +68,7 @@ process Typing {
     
     script:
     """
-    kma -i $demultiplexed/${primer} -t_db $indexed -eq 10 -5p 20 -3p 20 -1t1 -bc -bcNano -lc -o '${primer.replace('.fastq', '')}_types'
+    kma -i $demultiplexed/${primer} -tmp -t_db $indexed -eq 10 -5p 20 -3p 20 -1t1 -bc -bcNano -lc -o '${primer.replace('.fastq', '')}_types'
     """
 }
 
@@ -155,7 +155,7 @@ process FinalMapping {
 
     script:
     """
-    kma -i ${geneType}_matched_sequences.fasta -t_db $indexed  -eq 10 -5p 20 -3p 20 -1t1 -o '${geneType}_typing_results'
+    kma -i ${geneType}_matched_sequences.fasta -tmp -t_db $indexed  -eq 10 -5p 20 -3p 20 -1t1 -o '${geneType}_typing_results'
     """
 }
 
@@ -175,6 +175,7 @@ process GatherResults {
 }
 process ConvertToCsv {
     tag "Converting to CSV"
+    publishDir params.outdir
 
     input:
     path input_file
@@ -232,6 +233,7 @@ workflow{
     typing_input = left_joined_ch.combine(demultiplexed).map { primer, indexed, demultiplexed_dir -> 
         return [primer, indexed, demultiplexed_dir, params.outdir]
     } 
+    // | view()
 
     // TYPING
     typing_res = Typing(typing_input)
@@ -260,5 +262,5 @@ workflow{
     results_ch = GatherResults(final_mapping_res.collect())
 
     // CONVERTING THE RESULTS TO A CSV FILE
-    ConvertToCsv(results_ch) |view()
+    ConvertToCsv(results_ch) | view()
 }
