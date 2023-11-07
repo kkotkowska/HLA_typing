@@ -1,0 +1,9 @@
+work/
+results
+.nextflow*
+README.md
+*/.DS_Store
+.git
+.gitignore
+kma
+bin/kma
