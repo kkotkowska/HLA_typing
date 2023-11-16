@@ -1,7 +1,7 @@
 /* 
  * pipeline input parameters 
  */
-params.reads = "$projectDir/data/test_data/Test1.fastq.gz"
+// params.reads = "$projectDir/data/test_data/*fastq.gz"
 // params.reads = "$projectDir/data/test_data/data39/CDAN_1.fastq.gz"
 params.db = "$projectDir/data/imgt-hla/fasta/*_gen.fasta"
 params.db_class2 = "$projectDir/data/imgt-hla/D*_nuc.fasta"
@@ -20,29 +20,31 @@ log.info """\
          .stripIndent()
 
  
+// Process to demultiplex FASTQ files based on primer sequences
 process Demultiplex {
+    tag {reads.baseName}
+
     input:
     path reads
-    path primers
 
     output:
-    path 'demultiplexed_output', emit: demultiplexed_dir
+    path "${reads.baseName.replace('.fastq', '')}_demultiplexed_output", emit: demultiplexed_dir
 
     script:
+    // Call demultiplex.py script with the reads, primers, and output directory
     """
-    demultiplex.py $reads $primers
+    demultiplex.py $reads $params.primers "${reads.baseName.replace('.fastq', '')}_demultiplexed_output"
     """
 }
 
+// Function to extract gene type from a filename
 String getGeneTypeFromName(String name) {
-    // Split the name on the '-' and take the first element
-
     String geneType = name.split(/[-_]/)[0]
     return geneType
 }
 
+// Process to index genome data
 process Index {
-    
     input:
     path genome
 
@@ -50,43 +52,47 @@ process Index {
     path "indexed/${genome.baseName}_indexed.*"
 
     script:
+    // Create an indexed directory and perform indexing using kma
     """
     mkdir indexed
     kma index -i $genome -m 14 -o indexed/${genome.baseName}_indexed
     """
 }
 
+// Process for typing based on demultiplexed data and indexed database
 process Typing {
     tag { primer }
 
     input:
-    tuple val(primer), val(indexed), path(demultiplexed), path(outdir)
+    tuple val(primer), path(demultiplexed), val(indexed)
     
     output:
-    tuple val({primer.replace('.fastq', '')}),path("${primer.replace('.fastq', '')}_types.res"), path("${primer.replace('.fastq', '')}_types.fsa")
+    tuple val({primer.replace('.fastq', '')}), path("${primer.replace('.fastq', '_')}${demultiplexed.baseName.replace('_demultiplexed_output', '_')}types.res"), path("${primer.replace('.fastq', '_')}${demultiplexed.baseName.replace('_demultiplexed_output', '_')}types.fsa")
 
     
     script:
+    // Call kma for typing
     """
-    kma -i $demultiplexed/${primer} -tmp -t_db $indexed -eq 10 -5p 20 -3p 20 -1t1 -bc -bcNano -lc -o '${primer.replace('.fastq', '')}_types'
+    kma -i $demultiplexed/${primer} -tmp -t_db $indexed -eq 10 -5p 20 -3p 20 -1t1 -bc -bcNano -lc -proxi -0.98 -o '${primer.replace('.fastq', '_')}${demultiplexed.baseName.replace('_demultiplexed_output', '_')}types'
     """
 }
 
+// Process for sorting typing results
 process SortTypingResults {
-
     input:
     tuple val(locus), path(typing_results)
 
     output:
-    path "${locus}_sorted.txt", emit: sorted_results
+    path "${typing_results.baseName}_sorted.txt", emit: sorted_results
 
     script:
     """
     last_col=\$(head -n 1 ${typing_results} | awk '{print NF}')
-    cut -f 1,9 ${typing_results} | sort -k 5 -n -r | head -n 3 > ${locus}_sorted.txt
+    cut -f 1,9 ${typing_results} | sort -k 5 -n -r | head -n 3 > ${typing_results.baseName}_sorted.txt
     """
 }
 
+// Process for comparing proportions between the second most deep read and positive and negative controls
 process CompareProportions {
     tag "Comparing proportions in ${file}"
 
@@ -113,6 +119,7 @@ process CompareProportions {
     """
 }
 
+// Process for extracting names for further analysis
 process ExtractNames {
     tag "Extracting names from ${file}"
 
@@ -128,6 +135,7 @@ process ExtractNames {
     """
 }
 
+// Process for extracting sequences from a resulting file from KMA only for the hits
 process ExtractMatchingSequences {
     tag "${geneType}"
 
@@ -135,48 +143,51 @@ process ExtractMatchingSequences {
     tuple val(geneType), path(namesFile), path(fsaFile)
 
     output:
-    path("${geneType}_matched_sequences.fasta")
+    path("${namesFile.baseName.replace('_types_sorted_selected_names', '')}_matched_sequences.fasta")
 
     script:
+    // call extract_typed_sequences script with names, sequences, and a resulting file name
     """
-    extract_typed_sequences.py $namesFile $fsaFile ${geneType}_matched_sequences.fasta
-
+    extract_typed_sequences.py $namesFile $fsaFile ${namesFile.baseName.replace('_types_sorted_selected_names', '')}_matched_sequences.fasta
     """
 }
 
+// Process for typing of the extracted sequences
 process FinalMapping {
     tag "${geneType}"
 
     input:
-    tuple val(geneType), path("${geneType}_matched_sequences.fasta"), val(indexed)
+    tuple val(geneType), path("${geneType}_${fileName}_matched_sequences.fasta"), val(indexed), val(fileName)
 
     output:
-    path("${geneType}_typing_results.res")
+    path("${geneType}_${fileName}_results.res")
 
     script:
     """
-    kma -i ${geneType}_matched_sequences.fasta -tmp -t_db $indexed  -eq 10 -5p 20 -3p 20 -1t1 -o '${geneType}_typing_results'
+    kma -i ${geneType}_${fileName}_matched_sequences.fasta -tmp -t_db  $indexed -5p 20 -3p 20 -bc -bcNano -proxi -0.98 -1t1 -o '${geneType}_${fileName}_results'
     """
 }
 
-
-process GatherResults {
-    publishDir "results/"
+// Process for collecting all results (for each locus) for one file (usually person)
+process AggregateResults {
     input:
-    path results_list
+    tuple val(fileName), path(files)
 
     output:
-    path "final_results.txt"
+    path("${fileName}_aggregated.txt")
 
     script:
+    // The script concatenates the contents of all files, keeping the header from the first file only.
     """
-    cut -f 1 ${results_list}  > final_results.txt
+    HEADER=true
+    for file in \$(echo ${files}); do
+        cut -f 1 \$file >> ${fileName}_aggregated.txt
+    done
     """
 }
-process ConvertToCsv {
-    tag "Converting to CSV"
-    publishDir params.outdir
 
+// Process for converting the results to a csv
+process ConvertToCsv {
     input:
     path input_file
 
@@ -184,19 +195,32 @@ process ConvertToCsv {
     path "${input_file.baseName}.csv"
 
     script:
+    // call get_results_csv script with an input file and a resulting file name
     """
     get_results_csv.py ${input_file} ${input_file.baseName}.csv
     """
 }
 
+// Process for creating a csv file with all results (for all examined files)
+process TransformAndAggregateCSVs {
+    publishDir params.outdir
+
+    input:
+    path csv_files
+
+    output:
+    path "aggregated_results.csv"
+
+    script:
+    // call a transform_and_aggregate script with all csv files and a resulting file name
+    """
+    transform_and_aggregate.py ${csv_files} aggregated_results.csv
+    """
+}
+
+
 
 workflow{
-    // DEMULTIPLEXING
-    demultiplexed = Demultiplex(channel.of(params.reads), channel.of(params.primers))
-    demultiplexed_files_ch = demultiplexed.flatMap { dir -> tuple(dir.list()) }  // List the contents of the directory
-    .map { file -> tuple((file.replace('.fastq', '')), file)}
-    // | view()
-
     // INDEXING
     indexed_ch = Channel.fromPath(params.db) 
         | Index 
@@ -204,63 +228,78 @@ workflow{
         | map { indexed -> tuple(getGeneTypeFromName(indexed.baseName), indexed.toString().replace('.name','')) }
         // | view()
 
-    // COMBINING BINS AND DATASET - TYPING INPUT
-    concatenated = demultiplexed_files_ch.concat(indexed_ch)
-               .groupTuple()
-               .flatMap { key, values -> 
-                  def tuples = []
+    reads_ch = Channel
+    .fromPath(params.reads)
+    .ifEmpty { error "No reads found!" }
 
-                  // Only process keys with matched values
-                  if(values.size() > 1) {
-                      values.each { value ->
-                          tuples.add([key, value])
-                      }
-                  }
-                  return tuples
-               }
-    // Splitting data
-    fastq_ch = concatenated.filter { it[1].endsWith(".fastq") } 
-    path_ch = concatenated.filter { it[1].contains("/indexed/") }
-    // Group fastq and path files by key
-    grouped_fastq_ch = fastq_ch.groupTuple(by: 0).map { key, files -> [key, files.flatten()] }
-    grouped_path_ch = path_ch.groupTuple(by: 0).map { key, paths -> [key, paths.flatten()] }
-    // Combine these channels to get all combinations of fastq and path for each key
-    left_joined_ch = grouped_fastq_ch
-          .combine(grouped_path_ch, by: 0)
-          .flatMap { key, fastqFiles, pathFiles -> 
-                 fastqFiles.collect { fastq -> tuple(fastq, pathFiles[0]) }
-          }
-    typing_input = left_joined_ch.combine(demultiplexed).map { primer, indexed, demultiplexed_dir -> 
-        return [primer, indexed, demultiplexed_dir, params.outdir]
-    } 
+    // DEMULTIPLEXING
+    demultiplexed = Demultiplex(reads_ch)
+    demultiplexed_files_ch = demultiplexed.flatMap { dir ->
+        dir.list().collect { file ->
+        tuple(file.replace('.fastq', ''), file, dir)
+        }
+    }
+
+    // TYPING INPUT - DEMULTIPLEXED + INDEXED DB
+    typing_input = demultiplexed_files_ch.combine(indexed_ch, by:0)
+    .map{ key, fastq, dir, db -> [fastq, dir, db] }
     // | view()
 
     // TYPING
     typing_res = Typing(typing_input)
+    mapped = typing_res.map { typed -> tuple(typed[0], typed[1]) }
+    // | view()
 
     // EXTRACTING 3 BEST MATCHES FOR EACH LOCUS AND COMBINING WITH THE FULL INDEXED DATABASE 
-    mapped = typing_res.map { typed -> tuple(typed[0], typed[1]) }
     sorted_typing_res = SortTypingResults(mapped)
     typing_res_from_comparison = CompareProportions(sorted_typing_res)
     selected_records = ExtractNames(typing_res_from_comparison)
     .map{ file -> tuple(getGeneTypeFromName(file.baseName), file) }
+    // | view()
 
     extraction_input = selected_records
     .join(typing_res)
     .map{it.getAt([0,1,3])}
 
     indexed_hla_path = indexed_ch
-    .filter { it[0] == 'hla' } // Filters to only include items where geneType is 'hla'
+    .filter { it[0] == 'hla' }
     .map { it[1] } // Maps the channel to get only the indexPath
 
-    matching_sequences = ExtractMatchingSequences(extraction_input) 
+    // EXTRACTING SEQUENCES MATCHING THE 1 OR 2 HIGHEST HITS
+    matching_sequences_ch = ExtractMatchingSequences(extraction_input) 
     .map{ file -> tuple(getGeneTypeFromName(file.baseName), file) }
     .combine(indexed_hla_path) // Combining with the HLA index path
+    // | view()
 
-    // MAPPING THE BEST RESULTS FROM KMA AGAINST THE WHOLE DATABASE
+    // ensuring to have both - names of alleles and files
+    file_names_ch = matching_sequences_ch.map{ it -> 
+        def splitted_name = it[1].baseName.toString().split('_', 2)
+        return [splitted_name[0], splitted_name[1].replace('_matched_sequences.fasta', '')]
+        } 
+    // | view()
+
+    // FINAL MAPPING INPUT - SEQUENCES, ALLELE NAME, FILE NAME
+    matching_sequences = matching_sequences_ch.join(file_names_ch)
+    // | view()
+
+    // MAPPING THE BEST RESULTS FROM KMA WITH THE WHOLE DATABASE
     final_mapping_res = FinalMapping(matching_sequences)
-    results_ch = GatherResults(final_mapping_res.collect())
+    // | view()
+    .map { it ->
+        def splitted_name = it.baseName.toString().split('_', 2)
+        return [splitted_name[1].replace('_results.res', ''), it]
+    }
+    .groupTuple()
+    // | view()
+
+    // COLLECTING RESULTS FOR ALL LOCI
+    aggregated_res_ch = AggregateResults(final_mapping_res)
+    // | view()
 
     // CONVERTING THE RESULTS TO A CSV FILE
-    ConvertToCsv(results_ch) | view()
+    csv_files_ch = ConvertToCsv(aggregated_res_ch)
+
+    // COLLECTING ALL CSV FILES TO CREATE A SINGLE CSV WITH ALL THE RESULTS
+    TransformAndAggregateCSVs(csv_files_ch.collect())
+    | view()
 }

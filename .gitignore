@@ -4,4 +4,7 @@ results/*
 work/*
 data/imgt-hla
 data/test_data/data39
+.DS_Store
 */.DS_Store
+*/*/.DS_Store
+kma*

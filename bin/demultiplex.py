@@ -27,7 +27,7 @@ def reverse_slicing(s):
 
 
 # Define a function to demultiplex the FASTQ file based on primer sequences
-def demultiplex_fastq(input_fastq, primer_csv):
+def demultiplex_fastq(input_fastq, primer_csv, output_directory):
     # Create the output directory if it doesn't exist
     os.makedirs(output_directory, exist_ok=True)
     # Create a dictionary to store output file handles for each primer prefix
@@ -54,7 +54,7 @@ def demultiplex_fastq(input_fastq, primer_csv):
             primer_prefixes[primer_prefix].append(primer_sequence)
 
     # Define a threshold for the acceptable alignment score
-    alignment_threshold = len(primer_sequence) * 2 * 0.8
+    alignment_threshold = len(primer_sequence) * 2 * 0.7
 
     # Iterate through the FASTQ file and write reads to the corresponding output files
     with gzip.open(input_fastq, 'rt') as fastq_file:
@@ -86,7 +86,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Demultiplex FASTQ data based on primer sequences.")
     parser.add_argument("input_fastq", help="Input FASTQ file")
     parser.add_argument("primer_csv", help="CSV file containing primer information")
-    output_directory = "demultiplexed_output"
+    parser.add_argument("output_directory", help="Name of the output directory")
     # parser.add_argument("output_dir", help="Output directory for demultiplexed files")
     args = parser.parse_args()
 
@@ -96,7 +96,7 @@ if __name__ == "__main__":
 
     # Demultiplex the FASTQ file
     # demultiplex_fastq(args.input_fastq, args.primer_csv, args.output_dir)
-    demultiplex_fastq(args.input_fastq, args.primer_csv)
+    demultiplex_fastq(args.input_fastq, args.primer_csv, args.output_directory)
 
 
     unclassified_file.close()
