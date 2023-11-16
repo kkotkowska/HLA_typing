@@ -12,11 +12,11 @@ Pipeline for HLA typing based on Nanopore sequencing data.
 
 ## Quick start
 1. Install [Docker](https://docs.docker.com/engine/installation/), or [Anaconda](https://conda.io/miniconda.html)
-1. 1. For docker - activate the deamon, and build an image
+    For docker - activate the deamon, and build an image
     ```bash
     docker build -t hla-typing .
     ```
-1. 2. For conda - make a virtual environment 
+    For conda - make a virtual environment 
     ```bash
     conda env create -f hla-env.yml
     ```
