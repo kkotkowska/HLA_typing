@@ -13,6 +13,10 @@ Pipeline for HLA typing based on Nanopore sequencing data.
 ## Quick start
 1. Install [Docker](https://docs.docker.com/engine/installation/), or [Anaconda](https://conda.io/miniconda.html).
 2. Download the pipeline
+    ```bash
+    git clone git@github.com:kkotkowska/HLA_typing.git
+    ```
+    Download the database from [IMGT-HLA](https://www.ebi.ac.uk/ipd/imgt/hla/download/) and place in the data folder
 
     For docker - activate the deamon, and build an image
     ```bash
