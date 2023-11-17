@@ -1,11 +1,9 @@
 /* 
  * pipeline input parameters 
  */
-// params.reads = "$projectDir/data/test_data/*fastq.gz"
+params.reads = "$projectDir/data/test_data/*fastq.gz"
 // params.reads = "$projectDir/data/test_data/data39/CDAN_1.fastq.gz"
 params.db = "$projectDir/data/imgt-hla/fasta/*_gen.fasta"
-params.db_class2 = "$projectDir/data/imgt-hla/D*_nuc.fasta"
-params.exon_file = "$projectDir/data/exons/*.fa"
 params.primers = "$projectDir/data/primers/primers1.csv"
 params.outdir = "$projectDir/results/"
 
@@ -33,6 +31,7 @@ process Demultiplex {
     script:
     // Call demultiplex.py script with the reads, primers, and output directory
     """
+    echo $params.primers
     demultiplex.py $reads $params.primers "${reads.baseName.replace('.fastq', '')}_demultiplexed_output"
     """
 }

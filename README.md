@@ -18,15 +18,15 @@ Pipeline for HLA typing based on Nanopore sequencing data.
     ```
     Download the database from [IMGT-HLA](https://www.ebi.ac.uk/ipd/imgt/hla/download/) and place in the data folder
     ```bash
-    curl http://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/*_gen.fasta -O data/imgt-hla/fasta/
+    wget -r ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/fasta/ -O data/imgt-hla/fasta/
     ```
-    
+
     For docker - activate the deamon, and build an image
     ```bash
     docker build -t hla-typing .
 
     ```
-    run with "-profile 'docker'"
+    run with "-profile docker"
 
     For conda - make a virtual environment 
     ```bash
@@ -43,6 +43,7 @@ Pipeline for HLA typing based on Nanopore sequencing data.
     mv kma ../bin/
     ```
 3. Start running your analysis!
+    Run without parameters for a test.
     ```bash
-    ./nextflow run workflow.nf --reads 'data/Test*.fastq.gz' --primers 'data/primers/primers1.csv'
+    nextflow run workflow.nf 
     ```
