@@ -26,5 +26,5 @@ dependencies:
   - xz=5.4.2
   - zlib=1.2.13
   - nextflow
-  - zlib1g-dev
+  - zlib
 
