@@ -17,6 +17,7 @@ Pipeline for HLA typing based on Nanopore sequencing data.
     git clone git@github.com:kkotkowska/HLA_typing.git
     ```
     Download the database from [IMGT-HLA](https://www.ebi.ac.uk/ipd/imgt/hla/download/) and place in the data folder
+    curl http://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/*_gen.fasta -O data/imgt-hla/
 
     For docker - activate the deamon, and build an image
     ```bash
@@ -28,7 +29,10 @@ Pipeline for HLA typing based on Nanopore sequencing data.
     ```bash
     conda env create -f hla-env.yml
     ```
-    download KMA in the project directory
+    download KMA in the project directory. (Make sure you have a c compiler - for linux - gcc)
+    ```bash
+    sudo apt-get install gcc
+    ```
     ```bash
     git clone https://bitbucket.org/genomicepidemiology/kma.git
     cd kma && make
