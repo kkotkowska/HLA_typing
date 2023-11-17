@@ -12,14 +12,25 @@ Pipeline for HLA typing based on Nanopore sequencing data.
 
 ## Quick start
 1. Install [Docker](https://docs.docker.com/engine/installation/), or [Anaconda](https://conda.io/miniconda.html).
+2. Download the pipeline
 
     For docker - activate the deamon, and build an image
     ```bash
     docker build -t hla-typing .
     ```
+    run with "-profile 'docker'"
+
     For conda - make a virtual environment 
     ```bash
     conda env create -f hla-env.yml
     ```
-2. Download the pipeline
+    download KMA in the project directory
+    ```bash
+    git clone https://bitbucket.org/genomicepidemiology/kma.git
+    cd kma && make
+    mv kma ../bin/
+    ```
 3. Start running your analysis!
+    ```bash
+    ./nextflow run workflow.nf --reads 'data/Test*.fastq.gz' --primers 'data/primers/primers1.csv'
+    ```
