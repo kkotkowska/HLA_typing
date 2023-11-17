@@ -1,6 +1,7 @@
 name: hla-env
 channels:
   - defaults
+  - bioconda
 dependencies:
   - biopython=1.78
   - blas=1.0=openblas
@@ -24,4 +25,5 @@ dependencies:
   - wheel=0.41.2
   - xz=5.4.2
   - zlib=1.2.13
+  - nextflow
 
