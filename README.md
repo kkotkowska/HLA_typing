@@ -18,7 +18,8 @@ Pipeline for HLA typing based on Nanopore sequencing data.
     ```
     Download the database from [IMGT-HLA](https://www.ebi.ac.uk/ipd/imgt/hla/download/) and place in the data folder
     ```bash
-    wget -r ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/fasta/ -O data/imgt-hla/fasta/
+
+    wget -r -np -nH --cut-dirs 3 ftp://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/fasta/ && mv imgt data
     ```
 
     For docker - activate the deamon, and build an image

@@ -3,7 +3,7 @@
  */
 params.reads = "$projectDir/data/test_data/*fastq.gz"
 // params.reads = "$projectDir/data/test_data/data39/CDAN_1.fastq.gz"
-params.db = "$projectDir/data/imgt-hla/fasta/*_gen.fasta"
+params.db = "$projectDir/data/hla/fasta/*_gen.fasta"
 params.primers = "$projectDir/data/primers/primers1.csv"
 params.outdir = "$projectDir/results/"
 
