@@ -1,4 +1,4 @@
-# thesis-HLA_typing
+# HLA_typing
 
 ## Introduction
 Pipeline for HLA typing based on Nanopore sequencing data.
@@ -8,7 +8,7 @@ Pipeline for HLA typing based on Nanopore sequencing data.
 2. Index database files ([KMA](https://bitbucket.org/genomicepidemiology/kma/src/master/))
 3. Map against the database ([KMA](https://bitbucket.org/genomicepidemiology/kma/src/master/))
 4. Map the best hits again ([KMA](https://bitbucket.org/genomicepidemiology/kma/src/master/))
-5. Gather results into a csv
+5. Gather results into a csv file
 
 ## Quick start
 1. Install [Docker](https://docs.docker.com/engine/installation/), or [Anaconda](https://conda.io/miniconda.html).
