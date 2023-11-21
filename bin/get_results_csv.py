@@ -6,7 +6,7 @@ from collections import defaultdict
 
 def extract_locus_and_type(line):
     """ Extract gene type and number from the line. """
-    parts = line.split()
+    parts = line.split(',')
     locus = parts[1].split('*')[0]
     type = parts[1].split('*')[1].split()[0]
     return locus, type

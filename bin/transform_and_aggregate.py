@@ -16,7 +16,7 @@ def read_csv(file_path):
     return data
 
 def extract_test_name(file_path):
-    name = file_path.split('/')[-1].replace('_matched_sequences_results_aggregated.csv', '')
+    name = file_path.split('/')[-1].replace('_translated.csv', '')
     return name
 
 def main(csv_files, output_file):

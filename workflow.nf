@@ -4,8 +4,9 @@
 params.reads = "$projectDir/data/test_data/*fastq.gz"
 // params.reads = "$projectDir/data/test_data/data39/CDAN_1.fastq.gz"
 params.db = "$projectDir/data/hla/fasta/*_gen.fasta"
-params.primers = "$projectDir/data/primers/primers1.csv"
+params.primers = "$projectDir/data/primers/primers2.csv"
 params.outdir = "$projectDir/results/"
+params.g_groups = "$projectDir/data/hla_nom_g.txt"
 
 log.info """\
          HLATYPING - N F   P I P E L I N E    
@@ -31,7 +32,6 @@ process Demultiplex {
     script:
     // Call demultiplex.py script with the reads, primers, and output directory
     """
-    echo $params.primers
     demultiplex.py $reads $params.primers "${reads.baseName.replace('.fastq', '')}_demultiplexed_output"
     """
 }
@@ -78,6 +78,7 @@ process Typing {
 
 // Process for sorting typing results
 process SortTypingResults {
+    tag { locus }
     input:
     tuple val(locus), path(typing_results)
 
@@ -93,7 +94,8 @@ process SortTypingResults {
 
 // Process for comparing proportions between the second most deep read and positive and negative controls
 process CompareProportions {
-    tag "Comparing proportions in ${file}"
+    errorStrategy = "ignore"
+    tag { file }
 
     input:
     path file
@@ -120,7 +122,7 @@ process CompareProportions {
 
 // Process for extracting names for further analysis
 process ExtractNames {
-    tag "Extracting names from ${file}"
+    tag { file }
 
     input:
     path file
@@ -136,7 +138,7 @@ process ExtractNames {
 
 // Process for extracting sequences from a resulting file from KMA only for the hits
 process ExtractMatchingSequences {
-    tag "${geneType}"
+    tag { geneType }
 
     input:
     tuple val(geneType), path(namesFile), path(fsaFile)
@@ -169,6 +171,8 @@ process FinalMapping {
 
 // Process for collecting all results (for each locus) for one file (usually person)
 process AggregateResults {
+    tag { fileName }
+
     input:
     tuple val(fileName), path(files)
 
@@ -182,6 +186,21 @@ process AggregateResults {
     for file in \$(echo ${files}); do
         cut -f 1 \$file >> ${fileName}_aggregated.txt
     done
+    """
+}
+
+process TranslateAllelesToGGroups {
+    tag { fileName }
+
+    input:
+    tuple val(fileName), path(input_file)
+
+    output:
+    path "${fileName}_translated.txt"
+
+    script:
+    """
+    translate_to_g.py --input_file $input_file --g_group_file $params.g_groups --output_file ${fileName}_translated.txt
     """
 }
 
@@ -293,10 +312,17 @@ workflow{
 
     // COLLECTING RESULTS FOR ALL LOCI
     aggregated_res_ch = AggregateResults(final_mapping_res)
+    .map { it ->
+        return [it.baseName.toString().replace('_matched_sequences_results_aggregated', ''), it]
+    }
+    // | view()
+
+    translated_res_ch = TranslateAllelesToGGroups(aggregated_res_ch)
     // | view()
 
     // CONVERTING THE RESULTS TO A CSV FILE
-    csv_files_ch = ConvertToCsv(aggregated_res_ch)
+    csv_files_ch = ConvertToCsv(translated_res_ch)
+    // | view()
 
     // COLLECTING ALL CSV FILES TO CREATE A SINGLE CSV WITH ALL THE RESULTS
     TransformAndAggregateCSVs(csv_files_ch.collect())
