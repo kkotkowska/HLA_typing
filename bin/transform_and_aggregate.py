@@ -21,7 +21,7 @@ def extract_test_name(file_path):
 
 def main(csv_files, output_file):
     aggregated_data = defaultdict(lambda: defaultdict(list))
-    loci = ['A', 'B', 'C', 'DPB1', 'DQA1', 'DQB1', 'DRB1']  # Adjust this list based on your actual loci
+    loci = ['A', 'B', 'C', 'DRB1', 'DQB1', 'DQA1', 'DPB1']  # Adjust this list based on your actual loci
     
     # Sort the csv_files list
     sorted_csv_files = sorted(csv_files, key=lambda x: extract_test_name(x))

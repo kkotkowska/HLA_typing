@@ -7,9 +7,13 @@ from collections import defaultdict
 def extract_locus_and_type(line):
     """ Extract gene type and number from the line. """
     parts = line.split(',')
-    locus = parts[1].split('*')[0]
-    type = parts[1].split('*')[1].split()[0]
-    return locus, type
+    locus_type = parts[1].split('*')
+    locus = locus_type[0].strip()
+    if locus_type[1].split() != []:
+        hla_type = locus_type[1].split()[0].strip()
+    else:
+        hla_type = ''
+    return locus, hla_type
 
 def process_file(input_file, output_file):
     data = defaultdict(list)

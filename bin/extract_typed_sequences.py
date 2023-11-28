@@ -27,4 +27,5 @@ if __name__ == '__main__':
     output_file = sys.argv[3]
 
     names_set = read_names(names_file)
+    print(names_set)
     extract_sequences(fasta_file, names_set, output_file)

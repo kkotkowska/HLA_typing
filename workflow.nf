@@ -3,7 +3,8 @@
  */
 params.reads = "$projectDir/data/test_data/*fastq.gz"
 // params.reads = "$projectDir/data/test_data/data39/CDAN_1.fastq.gz"
-params.db = "$projectDir/data/hla/fasta/*_gen.fasta"
+params.db = "$projectDir/data/hla/fasta/{A,B,C}_gen.fasta"
+params.db_class2 = "$projectDir/data/hla/fasta/D*_nuc.fasta"
 params.primers = "$projectDir/data/primers/primers2.csv"
 params.outdir = "$projectDir/results/"
 params.g_groups = "$projectDir/data/hla_nom_g.txt"
@@ -18,6 +19,36 @@ log.info """\
          """
          .stripIndent()
 
+// process ExtractExon2 {
+//     input:
+//     path db_file 
+//     path exon_file
+
+//     output:
+//     path "${db_file.baseName}_exon2.fasta"
+
+//     script:
+//     """
+//     extract_exon2.py $exon_file $db_file ${db_file.baseName}_exon2.fasta
+//     """
+// }
+
+// Process to index genome data
+process Index {
+    tag { genome.baseName }
+    input:
+    path genome
+
+    output:
+    path "indexed/${genome.baseName}_indexed.*"
+
+    script:
+    // Create an indexed directory and perform indexing using kma
+    """
+    mkdir indexed
+    kma index -i $genome -m 14 -o indexed/${genome.baseName}_indexed
+    """
+}
  
 // Process to demultiplex FASTQ files based on primer sequences
 process Demultiplex {
@@ -41,21 +72,10 @@ String getGeneTypeFromName(String name) {
     String geneType = name.split(/[-_]/)[0]
     return geneType
 }
-
-// Process to index genome data
-process Index {
-    input:
-    path genome
-
-    output:
-    path "indexed/${genome.baseName}_indexed.*"
-
-    script:
-    // Create an indexed directory and perform indexing using kma
-    """
-    mkdir indexed
-    kma index -i $genome -m 14 -o indexed/${genome.baseName}_indexed
-    """
+// Function to extract gene type from a filename
+String getGeneAndSampleFromName(String name) {
+    String geneAndSample = name.split(/[-_]/)[0] + '_' + name.split(/[-_]/)[1]
+    return geneAndSample
 }
 
 // Process for typing based on demultiplexed data and indexed database
@@ -72,7 +92,7 @@ process Typing {
     script:
     // Call kma for typing
     """
-    kma -i $demultiplexed/${primer} -tmp -t_db $indexed -eq 10 -5p 20 -3p 20 -1t1 -bc -bcNano -lc -proxi -0.98 -o '${primer.replace('.fastq', '_')}${demultiplexed.baseName.replace('_demultiplexed_output', '_')}types'
+    kma -i $demultiplexed/${primer} -tmp -t_db $indexed -eq 10 -5p 20 -3p 20 -1t1 -bcNano -lc -proxi -0.98 -o '${primer.replace('.fastq', '_')}${demultiplexed.baseName.replace('_demultiplexed_output', '_')}types'
     """
 }
 
@@ -105,12 +125,13 @@ process CompareProportions {
 
     script:
     """
+
     echo "Processing file: ${file}"
     awk 'NR <= 3 { depth[NR] = \$NF; line[NR] = \$0 }
     END {
         diff12 = depth[1] - depth[2]
         diff13 = depth[1] - depth[3]
-        if (diff13 / diff12 < 1.1) 
+        if (diff13 / diff12 < 1 ) 
             print line[1] > "${file.baseName}_selected.txt"
         else {
             print line[1] > "${file.baseName}_selected.txt"
@@ -165,7 +186,7 @@ process FinalMapping {
 
     script:
     """
-    kma -i ${geneType}_${fileName}_matched_sequences.fasta -tmp -t_db  $indexed -5p 20 -3p 20 -bc -bcNano -proxi -0.98 -1t1 -o '${geneType}_${fileName}_results'
+    kma -i ${geneType}_${fileName}_matched_sequences.fasta -tmp -t_db  $indexed -proxi -0.98 -o '${geneType}_${fileName}_results'
     """
 }
 
@@ -240,7 +261,8 @@ process TransformAndAggregateCSVs {
 
 workflow{
     // INDEXING
-    indexed_ch = Channel.fromPath(params.db) 
+    indexed_ch = Channel.fromPath(params.db)
+        .concat(Channel.fromPath(params.db_class2))
         | Index 
         | map {it.get(2)}
         | map { indexed -> tuple(getGeneTypeFromName(indexed.baseName), indexed.toString().replace('.name','')) }
@@ -265,28 +287,31 @@ workflow{
 
     // TYPING
     typing_res = Typing(typing_input)
-    mapped = typing_res.map { typed -> tuple(typed[0], typed[1]) }
+    .map{ it -> tuple(getGeneAndSampleFromName(it[1].baseName), it[1], it[2]) }
+    // mapped = typing_res.map { typed -> tuple(typed[0], typed[1]) }
     // | view()
 
-    // EXTRACTING 3 BEST MATCHES FOR EACH LOCUS AND COMBINING WITH THE FULL INDEXED DATABASE 
-    sorted_typing_res = SortTypingResults(mapped)
+    // EXTRACTING 3 BEST MATCHES FOR EACH LOCUS, DECIDING IF HOMO OR HETEROZYGOUS AND EXTRACTING THE MATCHED SEQUENCES
+    sorted_typing_res = SortTypingResults(typing_res.map{it[0..1]})
     typing_res_from_comparison = CompareProportions(sorted_typing_res)
+    // | view()
     selected_records = ExtractNames(typing_res_from_comparison)
-    .map{ file -> tuple(getGeneTypeFromName(file.baseName), file) }
+    .map{ file -> tuple(getGeneAndSampleFromName(file.baseName), file) }
     // | view()
 
     extraction_input = selected_records
     .join(typing_res)
     .map{it.getAt([0,1,3])}
+    // | view()
 
-    indexed_hla_path = indexed_ch
-    .filter { it[0] == 'hla' }
-    .map { it[1] } // Maps the channel to get only the indexPath
+    // indexed_hla_path = indexed_ch
+    // .filter { it[0] == 'hla' }
+    // .map { it[1] } // Maps the channel to get only the indexPath
 
     // EXTRACTING SEQUENCES MATCHING THE 1 OR 2 HIGHEST HITS
     matching_sequences_ch = ExtractMatchingSequences(extraction_input) 
     .map{ file -> tuple(getGeneTypeFromName(file.baseName), file) }
-    .combine(indexed_hla_path) // Combining with the HLA index path
+    .combine(indexed_ch, by:0) // Combining with the HLA index path
     // | view()
 
     // ensuring to have both - names of alleles and files
@@ -294,7 +319,6 @@ workflow{
         def splitted_name = it[1].baseName.toString().split('_', 2)
         return [splitted_name[0], splitted_name[1].replace('_matched_sequences.fasta', '')]
         } 
-    // | view()
 
     // FINAL MAPPING INPUT - SEQUENCES, ALLELE NAME, FILE NAME
     matching_sequences = matching_sequences_ch.join(file_names_ch)
@@ -302,12 +326,18 @@ workflow{
 
     // MAPPING THE BEST RESULTS FROM KMA WITH THE WHOLE DATABASE
     final_mapping_res = FinalMapping(matching_sequences)
-    // | view()
     .map { it ->
         def splitted_name = it.baseName.toString().split('_', 2)
         return [splitted_name[1].replace('_results.res', ''), it]
     }
     .groupTuple()
+    // | view()
+
+    // sel_rec_ch = selected_records.map { it ->
+    //     def splitted_name = it.baseName.toString().split('_', 2)
+    //     return [splitted_name[1].replace('_types_sorted_selected_names', ''), it]
+    // }
+    // .groupTuple()
     // | view()
 
     // COLLECTING RESULTS FOR ALL LOCI

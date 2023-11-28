@@ -54,7 +54,7 @@ def demultiplex_fastq(input_fastq, primer_csv, output_directory):
             primer_prefixes[primer_prefix].append(primer_sequence)
 
     # Define a threshold for the acceptable alignment score
-    alignment_threshold = len(primer_sequence) * 2 * 0.75
+    alignment_threshold = len(primer_sequence) * 2 * 0.8
 
     # Iterate through the FASTQ file and write reads to the corresponding output files
     with gzip.open(input_fastq, 'rt') as fastq_file:
