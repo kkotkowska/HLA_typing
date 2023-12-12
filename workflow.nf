@@ -8,6 +8,8 @@ params.db_class2 = "$projectDir/data/hla/fasta/D*_nuc.fasta"
 params.primers = "$projectDir/data/primers/primers2.csv"
 params.outdir = "$projectDir/results/"
 params.g_groups = "$projectDir/data/hla_nom_g.txt"
+params.threshold = 0
+params.out = 'aggregated_results'
 
 log.info """\
          HLATYPING - N F   P I P E L I N E    
@@ -19,19 +21,6 @@ log.info """\
          """
          .stripIndent()
 
-// process ExtractExon2 {
-//     input:
-//     path db_file 
-//     path exon_file
-
-//     output:
-//     path "${db_file.baseName}_exon2.fasta"
-
-//     script:
-//     """
-//     extract_exon2.py $exon_file $db_file ${db_file.baseName}_exon2.fasta
-//     """
-// }
 
 // Process to index genome data
 process Index {
@@ -129,9 +118,9 @@ process CompareProportions {
     echo "Processing file: ${file}"
     awk 'NR <= 3 { depth[NR] = \$NF; line[NR] = \$0 }
     END {
-        diff12 = depth[1] - depth[2]
-        diff13 = depth[1] - depth[3]
-        if (diff13 / diff12 < 1 ) 
+        diff12 = depth[2]
+        diff13 = depth[3]
+        if (diff13 / diff12 < ${params.threshold} ) 
             print line[1] > "${file.baseName}_selected.txt"
         else {
             print line[1] > "${file.baseName}_selected.txt"
@@ -248,12 +237,12 @@ process TransformAndAggregateCSVs {
     path csv_files
 
     output:
-    path "aggregated_results.csv"
+    path params.out + '.csv'
 
     script:
     // call a transform_and_aggregate script with all csv files and a resulting file name
     """
-    transform_and_aggregate.py ${csv_files} aggregated_results.csv
+    transform_and_aggregate.py ${csv_files} ${params.out}.csv
     """
 }
 
