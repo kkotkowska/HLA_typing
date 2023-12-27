@@ -14,10 +14,10 @@ params.out = 'aggregated_results'
 log.info """\
          HLATYPING - N F   P I P E L I N E    
          ===================================
-         genome       : ${params.db}
          reads        : ${params.reads}
          primers      : ${params.primers}
-         out          : ${params.outdir}
+         outfile      : ${params.out}
+         outdir       : ${params.outdir}
          """
          .stripIndent()
 
@@ -97,7 +97,7 @@ process SortTypingResults {
     script:
     """
     last_col=\$(head -n 1 ${typing_results} | awk '{print NF}')
-    cut -f 1,9 ${typing_results} | sort -k 5 -n -r | head -n 3 > ${typing_results.baseName}_sorted.txt
+    cut -f 1,2 ${typing_results} | sort -k 5 -n -r | head -n 3 > ${typing_results.baseName}_sorted.txt
     """
 }
 
@@ -116,11 +116,11 @@ process CompareProportions {
     """
 
     echo "Processing file: ${file}"
-    awk 'NR <= 3 { depth[NR] = \$NF; line[NR] = \$0 }
+    awk 'NR <= 3 { score[NR] = \$NF; line[NR] = \$0 }
     END {
-        diff12 = depth[2]
-        diff13 = depth[3]
-        if (diff13 / diff12 < ${params.threshold} ) 
+        diff12 = score[1]
+        diff13 = score[2]
+        if (diff13 / diff12 < ${params.threshold}) 
             print line[1] > "${file.baseName}_selected.txt"
         else {
             print line[1] > "${file.baseName}_selected.txt"
@@ -322,13 +322,6 @@ workflow{
     .groupTuple()
     // | view()
 
-    // sel_rec_ch = selected_records.map { it ->
-    //     def splitted_name = it.baseName.toString().split('_', 2)
-    //     return [splitted_name[1].replace('_types_sorted_selected_names', ''), it]
-    // }
-    // .groupTuple()
-    // | view()
-
     // COLLECTING RESULTS FOR ALL LOCI
     aggregated_res_ch = AggregateResults(final_mapping_res)
     .map { it ->
@@ -345,5 +338,5 @@ workflow{
 
     // COLLECTING ALL CSV FILES TO CREATE A SINGLE CSV WITH ALL THE RESULTS
     TransformAndAggregateCSVs(csv_files_ch.collect())
-    | view()
+    // | view()
 }
