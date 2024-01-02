@@ -14,7 +14,7 @@ do
     # output_dir="${output_dir_prefix}_threshold_${threshold}"
 
     # Execute the Nextflow command with the current threshold value
-    python benchmarking/error_types_analysis.py projectNEXTFLOW/results/s3s2_threshold_${threshold}.csv benchmarking/baseline.xlsx benchmarking/s3s2_${threshold}.csv
+    python error_types_analysis.py ../results/final_threshold_${threshold}.csv baseline.xlsx res/final_${threshold}.csv
     # Optional: Add a delay or log message if needed
     # sleep 1
     # echo "Completed run for threshold $threshold"

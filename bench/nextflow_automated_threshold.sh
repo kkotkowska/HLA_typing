@@ -5,7 +5,7 @@ threshold_values=(0.0 0.01 0.05 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0)
 # threshold_values=(0.0 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.1)
 
 # Output directory prefix
-output_dir_prefix="s3s2"
+output_dir_prefix="final"
 
 # Loop through each threshold value
 for threshold in "${threshold_values[@]}"
@@ -14,7 +14,7 @@ do
     output_dir="${output_dir_prefix}_threshold_${threshold}"
 
     # Execute the Nextflow command with the current threshold value
-    ./nextflow run workflow.nf --reads '../data/test_data/data46/Barcode*_96_test1.fastq.gz' --threshold $threshold --out "$output_dir" -resume
+    ./nextflow run ../workflow.nf --reads '../../data/test_data/data46/Barcode*_96_test1.fastq.gz' --threshold $threshold --out "$output_dir" -resume
 
     # Optional: Add a delay or log message if needed
     # sleep 1
